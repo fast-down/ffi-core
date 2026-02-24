@@ -28,12 +28,14 @@ pub struct Config {
     pub pull_timeout: Duration,
     pub accept_invalid_certs: bool,
     pub accept_invalid_hostnames: bool,
-    pub local_address: Vec<IpAddr>,
-    pub max_speculative: usize,
     pub write_method: WriteMethod,
+    /// 使用哪些地址来发送请求
+    pub local_address: Vec<IpAddr>,
+    /// 投机线程数
+    pub max_speculative: usize,
     /// 已经下载过的部分
     pub have_been_downloaded_chunk: Vec<ProgressEntry>,
-    /// 滤除小于 chunk_window 的部分
+    /// 过滤掉 have_been_downloaded_chunk 中小于 chunk_window 的部分
     pub chunk_window: u64,
 }
 

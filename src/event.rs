@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum Event {
-    PrefectError(String),
+    PrefetchError(String),
     Pulling(usize),
     PullError(usize, String),
     PullTimeout(usize),
