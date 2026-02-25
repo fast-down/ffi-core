@@ -281,7 +281,7 @@ dependencies = [
 
 [[package]]
 name = "fast-down-ffi-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "fast-down",
  "parking_lot",

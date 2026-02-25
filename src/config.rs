@@ -30,7 +30,7 @@ pub struct Config {
     pub max_speculative: usize,
     /// 已经下载过的部分
     pub downloaded_chunk: Vec<ProgressEntry>,
-    /// 过滤掉 [`Config::have_been_downloaded_chunk`] 中小于 [`Config::chunk_window`] 的部分
+    /// 过滤掉 [`Config::downloaded_chunk`] 中小于 [`Config::chunk_window`] 的部分
     pub chunk_window: u64,
 }
 
