@@ -1,4 +1,4 @@
-use crate::{Config, Err2Str, Event, Proxy, WriteMethod};
+use crate::{Config, Err2Str, Event, WriteMethod};
 use fast_down::{
     BoxPusher, UrlInfo,
     file::FilePusher,
@@ -19,7 +19,6 @@ use url::Url;
 pub struct PreparedDownload {
     pub config: Config,
     pub headers: Arc<HeaderMap>,
-    pub proxy: Option<String>,
     pub local_addr: Arc<[IpAddr]>,
     pub resp: Arc<Mutex<Option<Response>>>,
 }
@@ -37,15 +36,10 @@ pub async fn prefetch(
             .map(|(k, v)| (k.parse(), v.parse()))
             .filter_map(|(k, v)| k.ok().zip(v.ok())),
     ));
-    let proxy = match &config.proxy {
-        Proxy::No => Some("".to_string()),
-        Proxy::System => None,
-        Proxy::Custom(p) => Some(p.clone()),
-    };
     let local_addr: Arc<[_]> = config.local_address.clone().into();
     let client = build_client(
         &headers,
-        proxy.as_deref(),
+        config.proxy.as_deref(),
         config.accept_invalid_certs,
         config.accept_invalid_hostnames,
         local_addr.first().cloned(),
@@ -63,7 +57,6 @@ pub async fn prefetch(
     let prepared = PreparedDownload {
         config,
         headers,
-        proxy,
         local_addr,
         resp: Arc::new(Mutex::new(Some(resp))),
     };
@@ -81,7 +74,6 @@ impl PreparedDownload {
         let PreparedDownload {
             config,
             headers,
-            proxy,
             local_addr,
             resp,
         } = self;
@@ -102,7 +94,7 @@ impl PreparedDownload {
         let puller = FastDownPuller::new(FastDownPullerOptions {
             url: info.final_url,
             headers,
-            proxy: proxy.as_deref(),
+            proxy: config.proxy.as_deref(),
             available_ips: local_addr,
             accept_invalid_certs: config.accept_invalid_certs,
             accept_invalid_hostnames: config.accept_invalid_hostnames,

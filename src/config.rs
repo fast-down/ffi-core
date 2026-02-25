@@ -1,4 +1,4 @@
-use fast_down::ProgressEntry;
+use fast_down::{ProgressEntry, utils::Proxy};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, net::IpAddr, path::PathBuf, time::Duration};
 
@@ -9,17 +9,10 @@ pub enum WriteMethod {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub enum Proxy {
-    No,
-    System,
-    Custom(String),
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Config {
     pub save_dir: PathBuf,
     pub threads: usize,
-    pub proxy: Proxy,
+    pub proxy: Proxy<String>,
     pub headers: HashMap<String, String>,
     pub min_chunk_size: u64,
     pub write_buffer_size: usize,
