@@ -24,25 +24,28 @@ pub struct PreparedDownload {
 }
 
 /// 这个函数允许通过 drop Future 的方式来取消
+///
+/// # Errors
+/// 如果发生错误，将返回一个包含错误信息的字符串。
 pub async fn prefetch(
     url: Url,
     config: Config,
     mut on_event: impl FnMut(Event) + Send + Sync,
 ) -> Result<(UrlInfo, PreparedDownload), String> {
-    let headers = Arc::new(HeaderMap::from_iter(
-        config
-            .headers
-            .iter()
-            .map(|(k, v)| (k.parse(), v.parse()))
-            .filter_map(|(k, v)| k.ok().zip(v.ok())),
-    ));
+    let headers: Arc<_> = config
+        .headers
+        .iter()
+        .map(|(k, v)| (k.parse(), v.parse()))
+        .filter_map(|(k, v)| k.ok().zip(v.ok()))
+        .collect::<HeaderMap>()
+        .into();
     let local_addr: Arc<[_]> = config.local_address.clone().into();
     let client = build_client(
         &headers,
         config.proxy.as_deref(),
         config.accept_invalid_certs,
         config.accept_invalid_hostnames,
-        local_addr.first().cloned(),
+        local_addr.first().copied(),
     )
     .err2str()?;
     let (info, resp) = loop {
@@ -65,13 +68,16 @@ pub async fn prefetch(
 
 impl PreparedDownload {
     /// 不能通过 drop Future 来终止这个函数，否则写入内容将会不完整
+    ///
+    /// # Errors
+    /// 如果发生错误，将返回一个包含错误信息的字符串。
     pub async fn start(
         self,
         info: UrlInfo,
         cancel_token: CancellationToken,
         mut on_event: impl FnMut(Event) + Send + Sync,
     ) -> Result<(), String> {
-        let PreparedDownload {
+        let Self {
             config,
             headers,
             local_addr,
@@ -85,7 +91,7 @@ impl PreparedDownload {
             &save_path,
         );
         let pusher = tokio::select! {
-              _ = cancel_token.cancelled() => {
+              () = cancel_token.cancelled() => {
                   on_event(Event::End { is_cancelled: true });
                   return Ok(());
               },
@@ -135,19 +141,16 @@ impl PreparedDownload {
                 },
             )
         };
-        let cancel_monitor = tokio::spawn({
-            let result = result.clone();
-            let token = cancel_token.clone();
-            async move {
-                token.cancelled().await;
-                result.abort();
+        loop {
+            tokio::select! {
+                () = cancel_token.cancelled() => result.abort(),
+                e = result.event_chain.recv() => match e {
+                    Ok(e) => on_event((&e).into()),
+                    Err(_) => break,
+                }
             }
-        });
-        while let Ok(e) = result.event_chain.recv().await {
-            on_event((&e).into());
         }
         result.join().await.err2str()?;
-        cancel_monitor.abort();
         on_event(Event::End {
             is_cancelled: cancel_token.is_cancelled(),
         });
@@ -155,6 +158,8 @@ impl PreparedDownload {
     }
 }
 
+/// # Errors
+/// 如果发生错误，将返回一个包含错误信息的字符串。
 pub async fn get_pusher(
     info: &UrlInfo,
     write_method: WriteMethod,

@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use fast_down::ProgressEntry;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum Event {
     PrefetchError(String),
     Pulling(usize),

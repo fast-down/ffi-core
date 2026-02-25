@@ -2,13 +2,13 @@ use fast_down::{ProgressEntry, utils::Proxy};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, net::IpAddr, path::PathBuf, time::Duration};
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum WriteMethod {
     Mmap,
     Std,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Config {
     pub save_dir: PathBuf,
     pub threads: usize,
@@ -28,7 +28,7 @@ pub struct Config {
     pub max_speculative: usize,
     /// 已经下载过的部分
     pub have_been_downloaded_chunk: Vec<ProgressEntry>,
-    /// 过滤掉 have_been_downloaded_chunk 中小于 chunk_window 的部分
+    /// 过滤掉 [`Config::have_been_downloaded_chunk`] 中小于 [`Config::chunk_window`] 的部分
     pub chunk_window: u64,
 }
 
