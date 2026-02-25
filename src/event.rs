@@ -1,11 +1,12 @@
 use std::fmt::Debug;
 
-use fast_down::ProgressEntry;
+use fast_down::{ProgressEntry, UrlInfo};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum Event {
     PrefetchError(String),
+    Prefetch(UrlInfo),
     Pulling(usize),
     PullError(usize, String),
     PullTimeout(usize),

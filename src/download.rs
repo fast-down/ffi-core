@@ -10,27 +10,28 @@ use fast_down::{
 };
 use parking_lot::Mutex;
 use reqwest::{Response, header::HeaderMap};
-use std::{net::IpAddr, path::Path, sync::Arc};
+use std::{
+    net::IpAddr,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 use tokio::fs::OpenOptions;
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
-#[derive(Debug, Clone)]
 pub struct PreparedDownload {
     pub config: Config,
     pub headers: Arc<HeaderMap>,
     pub local_addr: Arc<[IpAddr]>,
-    pub resp: Arc<Mutex<Option<Response>>>,
+    pub resp: Option<Arc<Mutex<Option<Response>>>>,
+    pub on_event: Box<dyn FnMut(Event) + Send + Sync>,
 }
 
 /// 这个函数允许通过 drop Future 的方式来取消
-///
-/// # Errors
-/// 如果发生错误，将返回一个包含错误信息的字符串。
 pub async fn prefetch(
     url: Url,
     config: Config,
-    mut on_event: impl FnMut(Event) + Send + Sync,
+    mut on_event: impl FnMut(Event) + Send + Sync + 'static,
 ) -> Result<(UrlInfo, PreparedDownload), Error> {
     let headers: Arc<_> = config
         .headers
@@ -47,11 +48,16 @@ pub async fn prefetch(
         config.accept_invalid_hostnames,
         local_addr.first().copied(),
     )?;
+    let mut retry_count = 0;
     let (info, resp) = loop {
         match client.prefetch(url.clone()).await {
             Ok(t) => break t,
             Err((e, t)) => {
                 on_event(Event::PrefetchError(format!("{e:?}")));
+                retry_count += 1;
+                if retry_count >= config.retry_times {
+                    return Err(Error::PrefetchTimeout(e));
+                }
                 tokio::time::sleep(t.unwrap_or(config.retry_gap)).await;
             }
         }
@@ -60,29 +66,28 @@ pub async fn prefetch(
         config,
         headers,
         local_addr,
-        resp: Arc::new(Mutex::new(Some(resp))),
+        resp: Some(Arc::new(Mutex::new(Some(resp)))),
+        on_event: Box::new(on_event),
     };
     Ok((info, prepared))
 }
 
 impl PreparedDownload {
     /// 不能通过 drop Future 来终止这个函数，否则写入内容将会不完整
-    ///
-    /// # Errors
-    /// 如果发生错误，将返回一个包含错误信息的字符串。
     pub async fn start(
         self,
         info: UrlInfo,
+        save_path: PathBuf,
         cancel_token: CancellationToken,
-        mut on_event: impl FnMut(Event) + Send + Sync,
     ) -> Result<(), Error> {
         let Self {
             config,
             headers,
             local_addr,
             resp,
+            mut on_event,
         } = self;
-        let save_path = config.save_dir.join(info.filename());
+        on_event(Event::Prefetch(info.clone()));
         let pusher = get_pusher(
             &info,
             config.write_method,
@@ -104,7 +109,7 @@ impl PreparedDownload {
             accept_invalid_certs: config.accept_invalid_certs,
             accept_invalid_hostnames: config.accept_invalid_hostnames,
             file_id: info.file_id,
-            resp: Some(resp),
+            resp,
         })?;
         let threads = if info.fast_download {
             config.threads.max(1)
@@ -117,7 +122,7 @@ impl PreparedDownload {
                 pusher,
                 multi::DownloadOptions {
                     download_chunks: invert(
-                        config.have_been_downloaded_chunk.into_iter(),
+                        config.downloaded_chunk.into_iter(),
                         info.size,
                         config.chunk_window,
                     ),
@@ -156,8 +161,6 @@ impl PreparedDownload {
     }
 }
 
-/// # Errors
-/// 如果发生错误，将返回一个包含错误信息的字符串。
 pub async fn get_pusher(
     info: &UrlInfo,
     write_method: WriteMethod,

@@ -14,7 +14,7 @@ keywords = ["concurrency", "downloader", "parallel", "performance", "thread"]
 categories = ["network-programming"]
 
 [dependencies]
-fast-down = { version = "3.8.1", features = ["sanitize-filename", "serde", "utils"] }
+fast-down = { version = "3.8.1", features = ["serde", "utils"] }
 parking_lot = "0.12.5"
 serde = "1.0.228"
 tokio = "1.49.0"
@@ -39,3 +39,4 @@ nursery = { level = "deny", priority = -1 }
 cargo = { level = "deny", priority = -1 }
 # restriction = { level = "deny", priority = -1 }
 multiple_crate_versions = "allow"
+missing_errors_doc = "allow"
