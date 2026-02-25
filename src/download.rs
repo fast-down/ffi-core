@@ -146,7 +146,10 @@ impl PreparedDownload {
         };
         loop {
             tokio::select! {
-                () = cancel_token.cancelled() => result.abort(),
+                () = cancel_token.cancelled() => {
+                    result.abort();
+                    break;
+                },
                 e = result.event_chain.recv() => match e {
                     Ok(e) => on_event((&e).into()),
                     Err(_) => break,
