@@ -1,7 +1,17 @@
 [package]
-name = "ffi-core"
+name = "fast-down-ffi-core"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
+authors = ["share121 <2854631158@qq.com>"]
+repository = "https://github.com/fast-down/ffi-core"
+readme = "README.md"
+exclude = ["/.github"]
+description = "超级快的下载器 ffi-core"
+documentation = "https://docs.rs/fast-down-ffi-core"
+homepage = "https://github.com/fast-down/ffi-core"
+keywords = ["concurrency", "downloader", "parallel", "performance", "thread"]
+categories = ["network-programming"]
 
 [dependencies]
 fast-down = { version = "3.8.1", features = ["sanitize-filename", "serde", "utils"] }
@@ -20,10 +30,7 @@ reqwest = { version = "0.13.2", default-features = false, features = [
   "system-proxy",
   "zstd"
 ] }
-
-[dev-dependencies]
-axum = "0.8.8"
-tempfile = "3.26.0"
+thiserror = "2.0.18"
 
 [lints.clippy]
 all = { level = "deny", priority = -1 }

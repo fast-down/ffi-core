@@ -1,4 +1,4 @@
-use crate::{Config, Err2Str, Event, WriteMethod};
+use crate::{Config, Error, Event, WriteMethod};
 use fast_down::{
     BoxPusher, UrlInfo,
     file::FilePusher,
@@ -31,7 +31,7 @@ pub async fn prefetch(
     url: Url,
     config: Config,
     mut on_event: impl FnMut(Event) + Send + Sync,
-) -> Result<(UrlInfo, PreparedDownload), String> {
+) -> Result<(UrlInfo, PreparedDownload), Error> {
     let headers: Arc<_> = config
         .headers
         .iter()
@@ -46,8 +46,7 @@ pub async fn prefetch(
         config.accept_invalid_certs,
         config.accept_invalid_hostnames,
         local_addr.first().copied(),
-    )
-    .err2str()?;
+    )?;
     let (info, resp) = loop {
         match client.prefetch(url.clone()).await {
             Ok(t) => break t,
@@ -76,7 +75,7 @@ impl PreparedDownload {
         info: UrlInfo,
         cancel_token: CancellationToken,
         mut on_event: impl FnMut(Event) + Send + Sync,
-    ) -> Result<(), String> {
+    ) -> Result<(), Error> {
         let Self {
             config,
             headers,
@@ -95,7 +94,7 @@ impl PreparedDownload {
                   on_event(Event::End { is_cancelled: true });
                   return Ok(());
               },
-              pusher = pusher => pusher?,
+              pusher = pusher => pusher.map_err(Error::Io)?,
         };
         let puller = FastDownPuller::new(FastDownPullerOptions {
             url: info.final_url,
@@ -106,8 +105,7 @@ impl PreparedDownload {
             accept_invalid_hostnames: config.accept_invalid_hostnames,
             file_id: info.file_id,
             resp: Some(resp),
-        })
-        .err2str()?;
+        })?;
         let threads = if info.fast_download {
             config.threads.max(1)
         } else {
@@ -150,7 +148,7 @@ impl PreparedDownload {
                 }
             }
         }
-        result.join().await.err2str()?;
+        result.join().await?;
         on_event(Event::End {
             is_cancelled: cancel_token.is_cancelled(),
         });
@@ -169,7 +167,11 @@ pub async fn get_pusher(
     #[cfg(target_pointer_width = "64")]
     if info.fast_download && write_method == WriteMethod::Mmap {
         use fast_down::file::MmapFilePusher;
-        let pusher = BoxPusher::new(MmapFilePusher::new(&save_path, info.size).await.err2str()?);
+        let pusher = BoxPusher::new(
+            MmapFilePusher::new(&save_path, info.size)
+                .await
+                .map_err(|e| format!("{e:?}"))?,
+        );
         return Ok(pusher);
     }
     let file = OpenOptions::new()
@@ -179,9 +181,9 @@ pub async fn get_pusher(
         .truncate(false)
         .open(&save_path)
         .await
-        .err2str()?;
+        .map_err(|e| format!("{e:?}"))?;
     let pusher = FilePusher::new(file, info.size, buffer_size)
         .await
-        .err2str()?;
+        .map_err(|e| format!("{e:?}"))?;
     Ok(BoxPusher::new(pusher))
 }
