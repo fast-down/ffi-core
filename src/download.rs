@@ -24,14 +24,22 @@ pub struct PreparedDownload {
     pub headers: Arc<HeaderMap>,
     pub local_addr: Arc<[IpAddr]>,
     pub resp: Option<Arc<Mutex<Option<Response>>>>,
-    pub on_event: Box<dyn FnMut(Event) + Send + Sync>,
+    pub tx: crossfire::Tx<crossfire::spsc::List<Event>>,
+}
+
+#[must_use]
+pub fn create_channel() -> (
+    crossfire::Tx<crossfire::spsc::List<Event>>,
+    crossfire::AsyncRx<crossfire::spsc::List<Event>>,
+) {
+    crossfire::spsc::unbounded_async()
 }
 
 /// 这个函数允许通过 drop Future 的方式来取消
 pub async fn prefetch(
     url: Url,
     config: Config,
-    mut on_event: impl FnMut(Event) + Send + Sync + 'static,
+    tx: crossfire::Tx<crossfire::spsc::List<Event>>,
 ) -> Result<(UrlInfo, PreparedDownload), Error> {
     let headers: Arc<_> = config
         .headers
@@ -53,7 +61,7 @@ pub async fn prefetch(
         match client.prefetch(url.clone()).await {
             Ok(t) => break t,
             Err((e, t)) => {
-                on_event(Event::PrefetchError(format!("{e:?}")));
+                let _ = tx.send(Event::PrefetchError(format!("{e:?}")));
                 retry_count += 1;
                 if retry_count >= config.retry_times {
                     return Err(Error::PrefetchTimeout(e));
@@ -67,7 +75,7 @@ pub async fn prefetch(
         headers,
         local_addr,
         resp: Some(Arc::new(Mutex::new(Some(resp)))),
-        on_event: Box::new(on_event),
+        tx,
     };
     Ok((info, prepared))
 }
@@ -85,9 +93,8 @@ impl PreparedDownload {
             headers,
             local_addr,
             resp,
-            mut on_event,
+            tx,
         } = self;
-        on_event(Event::Prefetch(info.clone()));
         let pusher = get_pusher(
             &info,
             config.write_method,
@@ -95,10 +102,7 @@ impl PreparedDownload {
             &save_path,
         );
         let pusher = tokio::select! {
-              () = cancel_token.cancelled() => {
-                  on_event(Event::End { is_cancelled: true });
-                  return Ok(());
-              },
+              () = cancel_token.cancelled() => return Ok(()),
               pusher = pusher => pusher.map_err(Error::Io)?,
         };
         let puller = FastDownPuller::new(FastDownPullerOptions {
@@ -151,15 +155,14 @@ impl PreparedDownload {
                     break;
                 },
                 e = result.event_chain.recv() => match e {
-                    Ok(e) => on_event((&e).into()),
+                    Ok(e) => {
+                        let _ = tx.send((&e).into());
+                    },
                     Err(_) => break,
                 }
             }
         }
         result.join().await?;
-        on_event(Event::End {
-            is_cancelled: cancel_token.is_cancelled(),
-        });
         Ok(())
     }
 }

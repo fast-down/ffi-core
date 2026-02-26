@@ -1,12 +1,10 @@
-use std::fmt::Debug;
-
-use fast_down::{ProgressEntry, UrlInfo};
+use fast_down::ProgressEntry;
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum Event {
     PrefetchError(String),
-    Prefetch(UrlInfo),
     Pulling(usize),
     PullError(usize, String),
     PullTimeout(usize),
@@ -15,7 +13,6 @@ pub enum Event {
     PushProgress(usize, ProgressEntry),
     FlushError(String),
     Finished(usize),
-    End { is_cancelled: bool },
 }
 
 impl<RE: Debug, WE: Debug> From<&fast_down::Event<RE, WE>> for Event {
