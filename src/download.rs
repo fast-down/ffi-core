@@ -35,6 +35,11 @@ pub fn create_channel() -> (
     crossfire::spsc::unbounded_async()
 }
 
+#[must_use]
+pub fn create_cancellation_token() -> CancellationToken {
+    CancellationToken::new()
+}
+
 /// 这个函数允许通过 drop Future 的方式来取消
 pub async fn prefetch(
     url: Url,

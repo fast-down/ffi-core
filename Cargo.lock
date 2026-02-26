@@ -280,8 +280,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "fast-down-ffi-core"
-version = "0.1.4"
+name = "fast-down-ffi"
+version = "0.1.0"
 dependencies = [
  "crossfire",
  "fast-down",

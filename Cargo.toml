@@ -1,15 +1,15 @@
 [package]
-name = "fast-down-ffi-core"
-version = "0.1.4"
+name = "fast-down-ffi"
+version = "0.1.0"
 edition = "2024"
 license = "MIT"
 authors = ["share121 <2854631158@qq.com>"]
-repository = "https://github.com/fast-down/ffi-core"
+repository = "https://github.com/fast-down/ffi"
 readme = "README.md"
 exclude = ["/.github"]
 description = "这个库旨在提供一个合适、易于使用的 fast-down 包装"
-documentation = "https://docs.rs/fast-down-ffi-core"
-homepage = "https://github.com/fast-down/ffi-core"
+documentation = "https://docs.rs/fast-down-ffi"
+homepage = "https://github.com/fast-down/ffi"
 keywords = ["concurrency", "downloader", "parallel", "performance", "thread"]
 categories = ["network-programming"]
 
