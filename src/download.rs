@@ -1,4 +1,4 @@
-use crate::{Config, Error, Event, WriteMethod};
+use crate::{Config, Error, Event, Tx, WriteMethod};
 use fast_down::{
     BoxPusher, UrlInfo,
     file::FilePusher,
@@ -19,33 +19,17 @@ use tokio::fs::OpenOptions;
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
-pub struct PreparedDownload {
+pub struct DownloadTask {
+    pub info: UrlInfo,
     pub config: Config,
     pub headers: Arc<HeaderMap>,
     pub local_addr: Arc<[IpAddr]>,
     pub resp: Option<Arc<Mutex<Option<Response>>>>,
-    pub tx: crossfire::Tx<crossfire::spsc::List<Event>>,
-}
-
-#[must_use]
-pub fn create_channel() -> (
-    crossfire::Tx<crossfire::spsc::List<Event>>,
-    crossfire::AsyncRx<crossfire::spsc::List<Event>>,
-) {
-    crossfire::spsc::unbounded_async()
-}
-
-#[must_use]
-pub fn create_cancellation_token() -> CancellationToken {
-    CancellationToken::new()
+    pub tx: Tx,
 }
 
 /// 这个函数允许通过 drop Future 的方式来取消
-pub async fn prefetch(
-    url: Url,
-    config: Config,
-    tx: crossfire::Tx<crossfire::spsc::List<Event>>,
-) -> Result<(UrlInfo, PreparedDownload), Error> {
+pub async fn prefetch(url: Url, config: Config, tx: Tx) -> Result<DownloadTask, Error> {
     let headers: Arc<_> = config
         .headers
         .iter()
@@ -75,25 +59,25 @@ pub async fn prefetch(
             }
         }
     };
-    let prepared = PreparedDownload {
+    Ok(DownloadTask {
         config,
         headers,
         local_addr,
         resp: Some(Arc::new(Mutex::new(Some(resp)))),
         tx,
-    };
-    Ok((info, prepared))
+        info,
+    })
 }
 
-impl PreparedDownload {
+impl DownloadTask {
     /// 不能通过 drop Future 来终止这个函数，否则写入内容将会不完整
     pub async fn start(
         self,
-        info: UrlInfo,
         save_path: PathBuf,
         cancel_token: CancellationToken,
     ) -> Result<(), Error> {
         let Self {
+            info,
             config,
             headers,
             local_addr,

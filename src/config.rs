@@ -1,15 +1,16 @@
 use fast_down::{ProgressEntry, utils::Proxy};
-use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, net::IpAddr, time::Duration};
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum WriteMethod {
     #[default]
     Mmap,
     Std,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Config {
     /// 线程数量，推荐值 `32` / `16` / `8`。线程越多不意味着越快
     pub threads: usize,
