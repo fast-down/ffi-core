@@ -1,6 +1,6 @@
 [package]
 name = "fast-down-ffi"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2024"
 license = "MIT"
 authors = ["share121 <2854631158@qq.com>"]
@@ -20,7 +20,7 @@ serde = { version = "1.0.228", optional = true }
 tokio = "1.49.0"
 tokio-util = "0.7.18"
 url = "2.5.8"
-reqwest = { version = "0.13.2", default-features = false }
+reqwest = { version = "0.13.2", default-features = false, features = ["brotli", "default-tls", "deflate", "gzip", "http2", "socks", "system-proxy", "zstd"] }
 thiserror = "2.0.18"
 crossfire = "3.1.4"
 
