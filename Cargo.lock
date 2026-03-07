@@ -261,9 +261,9 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "fast-down"
-version = "3.8.3"
+version = "3.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "adfc1bb6a735e739d8f7be33cc6cb81c47e0cb07d014f48946cdbcfb7026701e"
+checksum = "7fb24cc0196b1d89cf44785d076dfc0d716b7d21a4401ecdbbea6596d1c5b06f"
 dependencies = [
  "bytes",
  "fast-pull",
@@ -281,7 +281,7 @@ dependencies = [
 
 [[package]]
 name = "fast-down-ffi"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "crossfire",
  "fast-down",
