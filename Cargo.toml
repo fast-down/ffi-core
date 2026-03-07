@@ -1,6 +1,6 @@
 [package]
 name = "fast-down-ffi"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2024"
 license = "MIT"
 authors = ["share121 <2854631158@qq.com>"]
@@ -14,7 +14,7 @@ keywords = ["concurrency", "downloader", "parallel", "performance", "thread"]
 categories = ["network-programming"]
 
 [dependencies]
-fast-down = { version = "3.8.2", features = ["utils"] }
+fast-down = { version = "3.8.3", features = ["utils"] }
 parking_lot = "0.12.5"
 serde = { version = "1.0.228", optional = true }
 tokio = "1.50.0"
