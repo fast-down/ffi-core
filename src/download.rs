@@ -4,6 +4,7 @@ use fast_down::{
     file::FilePusher,
     http::Prefetch,
     invert,
+    mem::MemPusher,
     multi::{self, download_multi},
     single::{self, download_single},
     utils::{FastDownPuller, FastDownPullerOptions, build_client},
@@ -71,9 +72,9 @@ pub async fn prefetch(url: Url, config: Config, tx: Tx) -> Result<DownloadTask, 
 
 impl DownloadTask {
     /// 不能通过 drop Future 来终止这个函数，否则写入内容将会不完整
-    pub async fn start(
+    pub async fn start_with_pusher(
         self,
-        save_path: PathBuf,
+        pusher: BoxPusher,
         cancel_token: CancellationToken,
     ) -> Result<(), Error> {
         let Self {
@@ -84,16 +85,6 @@ impl DownloadTask {
             resp,
             tx,
         } = self;
-        let pusher = get_pusher(
-            &info,
-            config.write_method,
-            config.write_buffer_size,
-            &save_path,
-        );
-        let pusher = tokio::select! {
-              () = cancel_token.cancelled() => return Ok(()),
-              pusher = pusher => pusher.map_err(Error::Io)?,
-        };
         let puller = FastDownPuller::new(FastDownPullerOptions {
             url: info.final_url,
             headers,
@@ -153,6 +144,36 @@ impl DownloadTask {
         }
         result.join().await?;
         Ok(())
+    }
+
+    /// 不能通过 drop Future 来终止这个函数，否则写入内容将会不完整
+    /// pusher 由 [`Config::WriteMethod`] 指定
+    pub async fn start(
+        self,
+        save_path: PathBuf,
+        cancel_token: CancellationToken,
+    ) -> Result<(), Error> {
+        let pusher = get_pusher(
+            &self.info,
+            self.config.write_method.clone(),
+            self.config.write_buffer_size,
+            &save_path,
+        );
+        let pusher = tokio::select! {
+              () = cancel_token.cancelled() => return Ok(()),
+              pusher = pusher => pusher.map_err(Error::Io)?,
+        };
+        self.start_with_pusher(pusher, cancel_token).await
+    }
+
+    #[allow(clippy::missing_panics_doc)]
+    /// 不能通过 drop Future 来终止这个函数，否则写入内容将会不完整
+    pub async fn start_in_memory(self, cancel_token: CancellationToken) -> Result<Vec<u8>, Error> {
+        #[allow(clippy::cast_possible_truncation)]
+        let pusher = MemPusher::with_capacity(self.info.size as usize);
+        self.start_with_pusher(BoxPusher::new(pusher.clone()), cancel_token)
+            .await?;
+        Ok(Arc::try_unwrap(pusher.receive).unwrap().into_inner())
     }
 }
 
