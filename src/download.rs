@@ -147,7 +147,7 @@ impl DownloadTask {
     }
 
     /// 不能通过 drop Future 来终止这个函数，否则写入内容将会不完整
-    /// pusher 由 [`Config::WriteMethod`] 指定
+    /// pusher 由 [`WriteMethod`] 指定
     pub async fn start(
         self,
         save_path: PathBuf,
