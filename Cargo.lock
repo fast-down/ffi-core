@@ -261,9 +261,9 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "fast-down"
-version = "3.8.4"
+version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7fb24cc0196b1d89cf44785d076dfc0d716b7d21a4401ecdbbea6596d1c5b06f"
+checksum = "e5e34deece72cf5132a8f3fe2ad666cf57a39562d42a2d31f0cf43333d6e14e6"
 dependencies = [
  "bytes",
  "fast-pull",
@@ -281,7 +281,7 @@ dependencies = [
 
 [[package]]
 name = "fast-down-ffi"
-version = "0.1.9"
+version = "0.2.0"
 dependencies = [
  "crossfire",
  "fast-down",
@@ -296,9 +296,9 @@ dependencies = [
 
 [[package]]
 name = "fast-pull"
-version = "3.7.7"
+version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95c78389bb5da06a22c9835dee2060e3c04f1a6f67a6e7cc68b4f9bc01af5057"
+checksum = "245920bf34deacc36c69f3281e62062b5711f94de3cb489ccb6ace4e799ffeb1"
 dependencies = [
  "bytes",
  "crossfire",
@@ -311,9 +311,9 @@ dependencies = [
 
 [[package]]
 name = "fast-steal"
-version = "6.4.5"
+version = "6.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77bd3f9b1804626b1b2f8eedaf2b53226cd1716065f23e34b26fdbf01b3816c8"
+checksum = "9ab74cfd23afefa2575109927226e1fcfe51e54c3735fffb31790193eaf4e8a0"
 dependencies = [
  "parking_lot",
  "portable-atomic",

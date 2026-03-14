@@ -12,9 +12,15 @@ pub use event::*;
 pub use fast_down;
 pub use fast_down::{
     AnyError, BoxPusher, DownloadResult, Event as RawEvent, FileId, InvertIter, Merge,
-    ProgressEntry, PullResult, PullStream, Puller, PullerError, Pusher, Total, UrlInfo, WorkerId,
-    file, handle, http, invert, mem, mock, multi, reqwest as reqwest_adapter, single, utils,
+    ProgressEntry, Proxy, PullResult, PullStream, Puller, PullerError, Pusher, Total, UrlInfo,
+    WorkerId, fast_puller, getifaddrs, handle, http, invert, mock, multi,
+    reqwest as reqwest_adapter, single, unique_path,
 };
+
+#[cfg(feature = "file")]
+pub use fast_down::file;
+#[cfg(feature = "mem")]
+pub use fast_down::mem;
 
 use tokio_util::sync::CancellationToken;
 

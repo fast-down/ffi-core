@@ -1,22 +1,15 @@
-use crate::{Config, Error, Event, Tx, WriteMethod};
+use crate::{Config, Error, Event, Tx};
 use fast_down::{
     BoxPusher, UrlInfo,
-    file::FilePusher,
+    fast_puller::{FastDownPuller, FastDownPullerOptions, build_client},
     http::Prefetch,
     invert,
-    mem::MemPusher,
     multi::{self, download_multi},
     single::{self, download_single},
-    utils::{FastDownPuller, FastDownPullerOptions, build_client},
 };
 use parking_lot::Mutex;
 use reqwest::{Response, header::HeaderMap};
-use std::{
-    net::IpAddr,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
-use tokio::fs::OpenOptions;
+use std::{net::IpAddr, sync::Arc};
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
@@ -147,10 +140,11 @@ impl DownloadTask {
     }
 
     /// 不能通过 drop Future 来终止这个函数，否则写入内容将会不完整
-    /// pusher 由 [`WriteMethod`] 指定
+    /// pusher 由 [`crate::WriteMethod`] 指定
+    #[cfg(feature = "file")]
     pub async fn start(
         self,
-        save_path: PathBuf,
+        save_path: std::path::PathBuf,
         cancel_token: CancellationToken,
     ) -> Result<(), Error> {
         let pusher = get_pusher(
@@ -168,23 +162,25 @@ impl DownloadTask {
 
     #[allow(clippy::missing_panics_doc)]
     /// 不能通过 drop Future 来终止这个函数，否则写入内容将会不完整
+    #[cfg(feature = "mem")]
     pub async fn start_in_memory(self, cancel_token: CancellationToken) -> Result<Vec<u8>, Error> {
         #[allow(clippy::cast_possible_truncation)]
-        let pusher = MemPusher::with_capacity(self.info.size as usize);
+        let pusher = fast_down::mem::MemPusher::with_capacity(self.info.size as usize);
         self.start_with_pusher(BoxPusher::new(pusher.clone()), cancel_token)
             .await?;
         Ok(Arc::try_unwrap(pusher.receive).unwrap().into_inner())
     }
 }
 
+#[cfg(feature = "file")]
 pub async fn get_pusher(
     info: &UrlInfo,
-    write_method: WriteMethod,
+    write_method: crate::WriteMethod,
     buffer_size: usize,
-    save_path: &Path,
+    save_path: &std::path::Path,
 ) -> Result<BoxPusher, String> {
     #[cfg(target_pointer_width = "64")]
-    if info.fast_download && write_method == WriteMethod::Mmap {
+    if info.fast_download && write_method == crate::WriteMethod::Mmap {
         use fast_down::file::MmapFilePusher;
         let pusher = BoxPusher::new(
             MmapFilePusher::new(&save_path, info.size)
@@ -193,7 +189,7 @@ pub async fn get_pusher(
         );
         return Ok(pusher);
     }
-    let file = OpenOptions::new()
+    let file = tokio::fs::OpenOptions::new()
         .create(true)
         .write(true)
         .read(true)
@@ -201,7 +197,7 @@ pub async fn get_pusher(
         .open(&save_path)
         .await
         .map_err(|e| format!("{e:?}"))?;
-    let pusher = FilePusher::new(file, info.size, buffer_size)
+    let pusher = fast_down::file::FilePusher::new(file, info.size, buffer_size)
         .await
         .map_err(|e| format!("{e:?}"))?;
     Ok(BoxPusher::new(pusher))

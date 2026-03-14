@@ -1,4 +1,4 @@
-use fast_down::{ProgressEntry, utils::Proxy};
+use fast_down::{ProgressEntry, Proxy};
 use std::{collections::HashMap, net::IpAddr, time::Duration};
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -52,6 +52,7 @@ pub struct Config {
     ///     2. 必须知道文件大小，否则会自动回退到 [`WriteMethod::Std`]
     ///     3. 特殊情况下会出现系统把所有数据全部缓存在内存中，下载完成后一次性写入磁盘，造成下载完成后长时间卡顿
     /// - [`WriteMethod::Std`] 写入方式兼容性最好，会在 `write_buffer_size` 内对片段进行排序，尽量转换为顺序写入
+    #[cfg(feature = "file")]
     pub write_method: WriteMethod,
     /// 设置获取元数据的重试次数，推荐值 `10`。注意，这不是下载中的重试次数
     pub retry_times: usize,
@@ -88,6 +89,7 @@ impl Default for Config {
             accept_invalid_hostnames: false,
             local_address: Vec::new(),
             max_speculative: 3,
+            #[cfg(feature = "file")]
             write_method: WriteMethod::Mmap,
             downloaded_chunk: Vec::new(),
             chunk_window: 8 * 1024,
