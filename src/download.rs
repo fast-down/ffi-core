@@ -139,11 +139,12 @@ impl DownloadTask {
                 },
             )
         };
+        let mut cancelled = false;
         loop {
             tokio::select! {
-                () = cancel_token.cancelled() => {
+                () = cancel_token.cancelled(), if !cancelled => {
                     result.abort();
-                    break;
+                    cancelled = true;
                 },
                 e = result.event_chain.recv() => match e {
                     Ok(e) => {
@@ -204,16 +205,6 @@ pub async fn get_pusher(
     buffer_size: usize,
     save_path: &std::path::Path,
 ) -> Result<BoxPusher, String> {
-    #[cfg(target_pointer_width = "64")]
-    if info.fast_download && write_method == crate::WriteMethod::Mmap {
-        use fast_down::file::MmapFilePusher;
-        let pusher = BoxPusher::new(
-            MmapFilePusher::new(&save_path, info.size)
-                .await
-                .map_err(|e| format!("{e:?}"))?,
-        );
-        return Ok(pusher);
-    }
     let file = tokio::fs::OpenOptions::new()
         .create(true)
         .write(true)
@@ -222,6 +213,16 @@ pub async fn get_pusher(
         .open(&save_path)
         .await
         .map_err(|e| format!("{e:?}"))?;
+    #[cfg(target_pointer_width = "64")]
+    if info.fast_download && write_method == crate::WriteMethod::Mmap {
+        use fast_down::file::MmapFilePusher;
+        let pusher = BoxPusher::new(
+            MmapFilePusher::new(file, info.size)
+                .await
+                .map_err(|e| format!("{e:?}"))?,
+        );
+        return Ok(pusher);
+    }
     let pusher = fast_down::file::FilePusher::new(file, info.size, buffer_size)
         .await
         .map_err(|e| format!("{e:?}"))?;
