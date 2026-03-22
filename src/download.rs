@@ -1,6 +1,6 @@
 use crate::{Config, Error, Event, Tx};
 use fast_down::{
-    BoxPusher, UrlInfo,
+    BoxPusher, Merge, UrlInfo,
     fast_puller::{FastDownPuller, FastDownPullerOptions, build_client},
     http::Prefetch,
     invert,
@@ -9,28 +9,38 @@ use fast_down::{
 };
 use parking_lot::Mutex;
 use reqwest::{Response, header::HeaderMap};
-use std::{net::IpAddr, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+};
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
+#[derive(Debug)]
 pub struct DownloadTask {
     pub info: UrlInfo,
     pub config: Config,
-    pub headers: Arc<HeaderMap>,
-    pub local_addr: Arc<[IpAddr]>,
     pub resp: Option<Arc<Mutex<Option<Response>>>>,
     pub tx: Tx,
+    pub is_running: AtomicBool,
 }
 
-/// 这个函数允许通过 drop Future 的方式来取消
-pub async fn prefetch(url: Url, config: Config, tx: Tx) -> Result<DownloadTask, Error> {
-    let headers: Arc<_> = config
-        .headers
+#[must_use]
+fn parse_headers(headers: &HashMap<String, String>) -> Arc<HeaderMap> {
+    headers
         .iter()
         .map(|(k, v)| (k.parse(), v.parse()))
         .filter_map(|(k, v)| k.ok().zip(v.ok()))
         .collect::<HeaderMap>()
-        .into();
+        .into()
+}
+
+/// 这个函数允许通过 drop Future 的方式来取消
+pub async fn prefetch(url: Url, config: Config, tx: Tx) -> Result<DownloadTask, Error> {
+    let headers = parse_headers(&config.headers);
     let local_addr: Arc<[_]> = config.local_address.clone().into();
     let client = build_client(
         &headers,
@@ -55,60 +65,68 @@ pub async fn prefetch(url: Url, config: Config, tx: Tx) -> Result<DownloadTask, 
     };
     Ok(DownloadTask {
         config,
-        headers,
-        local_addr,
         resp: Some(Arc::new(Mutex::new(Some(resp)))),
         tx,
         info,
+        is_running: AtomicBool::new(false),
     })
+}
+
+struct RunGuard<'a>(&'a AtomicBool);
+impl Drop for RunGuard<'_> {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::Release);
+    }
 }
 
 impl DownloadTask {
     /// 不能通过 drop Future 来终止这个函数，否则写入内容将会不完整
+    /// 多次调用会在上次中断的地方继续
     pub async fn start_with_pusher(
-        self,
+        &self,
         pusher: BoxPusher,
         cancel_token: CancellationToken,
     ) -> Result<(), Error> {
-        let Self {
-            info,
-            config,
-            headers,
-            local_addr,
-            resp,
-            tx,
-        } = self;
+        if self
+            .is_running
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .is_err()
+        {
+            return Err(Error::AlreadyRunning);
+        }
+        let _guard = RunGuard(&self.is_running);
+        let progress = self.config.downloaded_chunk.clone();
         let puller = FastDownPuller::new(FastDownPullerOptions {
-            url: info.final_url,
-            headers,
-            proxy: config.proxy.as_deref(),
-            available_ips: local_addr,
-            accept_invalid_certs: config.accept_invalid_certs,
-            accept_invalid_hostnames: config.accept_invalid_hostnames,
-            file_id: info.file_id,
-            resp,
+            url: self.info.final_url.clone(),
+            headers: parse_headers(&self.config.headers),
+            proxy: self.config.proxy.as_deref(),
+            available_ips: self.config.local_address.clone().into(),
+            accept_invalid_certs: self.config.accept_invalid_certs,
+            accept_invalid_hostnames: self.config.accept_invalid_hostnames,
+            file_id: self.info.file_id.clone(),
+            resp: self.resp.clone(),
         })?;
-        let threads = if info.fast_download {
-            config.threads.max(1)
+        let threads = if self.info.fast_download {
+            self.config.threads.max(1)
         } else {
             1
         };
-        let result = if info.fast_download {
+        let result = if self.info.fast_download {
             download_multi(
                 puller,
                 pusher,
                 multi::DownloadOptions {
                     download_chunks: invert(
-                        config.downloaded_chunk.into_iter(),
-                        info.size,
-                        config.chunk_window,
+                        progress.lock().iter().cloned(),
+                        self.info.size,
+                        self.config.chunk_window,
                     ),
-                    retry_gap: config.retry_gap,
+                    retry_gap: self.config.retry_gap,
                     concurrent: threads,
-                    pull_timeout: config.pull_timeout,
-                    push_queue_cap: config.write_queue_cap,
-                    min_chunk_size: config.min_chunk_size,
-                    max_speculative: config.max_speculative,
+                    pull_timeout: self.config.pull_timeout,
+                    push_queue_cap: self.config.write_queue_cap,
+                    min_chunk_size: self.config.min_chunk_size,
+                    max_speculative: self.config.max_speculative,
                 },
             )
         } else {
@@ -116,8 +134,8 @@ impl DownloadTask {
                 puller,
                 pusher,
                 single::DownloadOptions {
-                    retry_gap: config.retry_gap,
-                    push_queue_cap: config.write_queue_cap,
+                    retry_gap: self.config.retry_gap,
+                    push_queue_cap: self.config.write_queue_cap,
                 },
             )
         };
@@ -129,7 +147,14 @@ impl DownloadTask {
                 },
                 e = result.event_chain.recv() => match e {
                     Ok(e) => {
-                        let _ = tx.send((&e).into());
+                        let _ = self.tx.send((&e).into());
+                        if let fast_down::Event::PushProgress(_, range) = e {
+                            let mut p = progress.lock();
+                            if range.start == 0 && !self.info.fast_download {
+                                p.clear();
+                            }
+                            p.merge_progress(range);
+                        }
                     },
                     Err(_) => break,
                 }
@@ -143,7 +168,7 @@ impl DownloadTask {
     /// pusher 由 [`crate::WriteMethod`] 指定
     #[cfg(feature = "file")]
     pub async fn start(
-        self,
+        &self,
         save_path: std::path::PathBuf,
         cancel_token: CancellationToken,
     ) -> Result<(), Error> {
@@ -163,7 +188,7 @@ impl DownloadTask {
     #[allow(clippy::missing_panics_doc)]
     /// 不能通过 drop Future 来终止这个函数，否则写入内容将会不完整
     #[cfg(feature = "mem")]
-    pub async fn start_in_memory(self, cancel_token: CancellationToken) -> Result<Vec<u8>, Error> {
+    pub async fn start_in_memory(&self, cancel_token: CancellationToken) -> Result<Vec<u8>, Error> {
         #[allow(clippy::cast_possible_truncation)]
         let pusher = fast_down::mem::MemPusher::with_capacity(self.info.size as usize);
         self.start_with_pusher(BoxPusher::new(pusher.clone()), cancel_token)

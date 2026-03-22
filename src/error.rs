@@ -13,4 +13,6 @@ pub enum Error {
     Task(#[from] Arc<JoinError>),
     #[error("Prefetch timeout: {0:?}")]
     PrefetchTimeout(HttpError<Client>),
+    #[error("Task is already running")]
+    AlreadyRunning,
 }

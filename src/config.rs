@@ -1,5 +1,6 @@
 use fast_down::{ProgressEntry, Proxy};
-use std::{collections::HashMap, net::IpAddr, time::Duration};
+use parking_lot::Mutex;
+use std::{collections::HashMap, net::IpAddr, sync::Arc, time::Duration};
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -10,7 +11,7 @@ pub enum WriteMethod {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct Config {
     /// 线程数量，推荐值 `32` / `16` / `8`。线程越多不意味着越快
     pub threads: usize,
@@ -66,7 +67,7 @@ pub struct Config {
     /// 最多有 `max_speculative` 个线程在同一分块上竞争下载，以解决下载卡进度 99% 的问题
     pub max_speculative: usize,
     /// 已经下载过的部分，如果你想下载整个文件，就传 `Vec::new()`
-    pub downloaded_chunk: Vec<ProgressEntry>,
+    pub downloaded_chunk: Arc<Mutex<Vec<ProgressEntry>>>,
     /// 已下载分块的平滑窗口，单位为字节，推荐值 `8 * 1024`
     ///
     /// 它会过滤掉 `downloaded_chunk` 中小于 `chunk_window` 的小空洞，以减小 HTTP 请求数量
@@ -91,7 +92,7 @@ impl Default for Config {
             max_speculative: 3,
             #[cfg(feature = "file")]
             write_method: WriteMethod::Mmap,
-            downloaded_chunk: Vec::new(),
+            downloaded_chunk: Arc::default(),
             chunk_window: 8 * 1024,
         }
     }

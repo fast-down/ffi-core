@@ -24,12 +24,12 @@ pub use fast_down::mem;
 
 use tokio_util::sync::CancellationToken;
 
-pub type Tx = crossfire::Tx<crossfire::spsc::List<Event>>;
+pub type Tx = crossfire::MTx<crossfire::spsc::List<Event>>;
 pub type Rx = crossfire::AsyncRx<crossfire::spsc::List<Event>>;
 
 #[must_use]
 pub fn create_channel() -> (Tx, Rx) {
-    crossfire::spsc::unbounded_async()
+    crossfire::mpsc::unbounded_async()
 }
 
 #[must_use]
