@@ -1,6 +1,6 @@
 [package]
 name = "fast-down-ffi"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 license = "MIT"
 authors = ["share121 <2854631158@qq.com>"]
@@ -14,8 +14,8 @@ keywords = ["concurrency", "downloader", "parallel", "performance", "thread"]
 categories = ["network-programming"]
 
 [dependencies]
-# fast-down = { version = "4.0.0", features = ["fast-puller", "getifaddrs", "unique-path"] }
-fast-down = { path = "../core/crates/fast-down", features = ["fast-puller", "getifaddrs", "unique-path"] }
+fast-down = { version = "4.0.1", features = ["fast-puller", "getifaddrs", "unique-path"] }
+# fast-down = { path = "../core/crates/fast-down", features = ["fast-puller", "getifaddrs", "unique-path"] }
 parking_lot = { version = "0.12.5", features = ["serde"] }
 serde = { version = "1.0.228", optional = true }
 tokio = "1.50.0"
