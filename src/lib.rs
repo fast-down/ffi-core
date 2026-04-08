@@ -14,7 +14,7 @@ pub use fast_down::{
     AnyError, BoxPusher, DownloadResult, Event as RawEvent, FileId, InvertIter, Merge,
     ProgressEntry, Proxy, PullResult, PullStream, Puller, PullerError, Pusher, Total, UrlInfo,
     WorkerId, fast_puller, getifaddrs, handle, http, invert, mock, multi,
-    reqwest as reqwest_adapter, single, unique_path,
+    reqwest as reqwest_adapter, single,
 };
 
 #[cfg(feature = "file")]
