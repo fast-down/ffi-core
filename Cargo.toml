@@ -1,6 +1,6 @@
 [package]
 name = "fast-down-ffi"
-version = "0.2.6"
+version = "0.2.7"
 edition = "2024"
 license = "MIT"
 authors = ["share121 <2854631158@qq.com>"]
@@ -30,6 +30,7 @@ serde = ["dep:serde", "fast-down/serde"]
 file = ["fast-down/file"]
 mem = ["fast-down/mem"]
 reqwest-tls = ["fast-down/reqwest-tls"]
+sanitize-filename = ["fast-down/sanitize-filename"]
 
 [lints.clippy]
 all = { level = "deny", priority = -1 }
