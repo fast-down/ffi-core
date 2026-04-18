@@ -29,6 +29,20 @@ pub struct Config {
     /// - 只对 [`WriteMethod::Std`] 写入方法有效，有利于将随机写入转换为顺序写入，提高写入速度
     /// - 对于 [`WriteMethod::Mmap`] 写入方法无效，因为写入缓冲区由系统决定
     pub write_buffer_size: usize,
+    /// 字节合并区最大大小，单位为字节，推荐值 `16 * 1024 * 1024` 或比 `write_buffer_size` 略大
+    ///
+    /// 当字节合并区大小 >= `cache_high_watermark` 会触发一次合并写入，把字节合并区的大小降到 `cache_low_watermark` 及以下
+    ///
+    /// - 只对 [`WriteMethod::Std`] 写入方法有效，有利于将随机写入转换为顺序写入，提高写入速度
+    /// - 对于 [`WriteMethod::Mmap`] 写入方法无效
+    pub cache_high_watermark: usize,
+    /// 字节合并区目标大小，单位为字节，推荐值 `8 * 1024 * 1024` 或为 `cache_high_watermark` 的一半
+    ///
+    /// 字节合并区在触发合并写入后，大小会降到 `cache_low_watermark` 及以下
+    ///
+    /// - 只对 [`WriteMethod::Std`] 写入方法有效，有利于将随机写入转换为顺序写入，提高写入速度
+    /// - 对于 [`WriteMethod::Mmap`] 写入方法无效
+    pub cache_low_watermark: usize,
     /// 写入队列容量，推荐值 `10240`
     ///
     /// 如果下载线程太快，填满了写入队列，会触发压背，降低下载速度，防止内存占用过大
@@ -83,6 +97,8 @@ impl Default for Config {
             headers: HashMap::new(),
             min_chunk_size: 8 * 1024 * 1024,
             write_buffer_size: 16 * 1024 * 1024,
+            cache_high_watermark: 16 * 1024 * 1024,
+            cache_low_watermark: 8 * 1024 * 1024,
             write_queue_cap: 10240,
             retry_gap: Duration::from_millis(500),
             pull_timeout: Duration::from_secs(5),

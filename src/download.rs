@@ -176,6 +176,8 @@ impl DownloadTask {
         let pusher = get_pusher(
             &self.info,
             self.config.write_method.clone(),
+            self.config.cache_high_watermark,
+            self.config.cache_low_watermark,
             self.config.write_buffer_size,
             &save_path,
         );
@@ -202,6 +204,8 @@ impl DownloadTask {
 pub async fn get_pusher(
     info: &UrlInfo,
     write_method: crate::WriteMethod,
+    high_watermark: usize,
+    low_watermark: usize,
     buffer_size: usize,
     save_path: &std::path::Path,
 ) -> Result<BoxPusher, String> {
@@ -226,8 +230,8 @@ pub async fn get_pusher(
     let pusher = fast_down::file::CacheFilePusher::new(
         file,
         info.size,
-        buffer_size,
-        buffer_size / 2,
+        high_watermark,
+        low_watermark,
         buffer_size,
     )
     .await
