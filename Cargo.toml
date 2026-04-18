@@ -14,16 +14,25 @@ keywords = ["concurrency", "downloader", "parallel", "performance", "thread"]
 categories = ["network-programming"]
 
 [dependencies]
-fast-down = { version = "4.0.4", features = ["fast-puller", "getifaddrs"] }
+fast-down = { version = "4.0.6", features = ["fast-puller", "getifaddrs"] }
 # fast-down = { path = "../core/crates/fast-down", features = ["fast-puller", "getifaddrs", "unique-path"] }
-parking_lot = { version = "0.12.5", features = ["serde"] }
-serde = { version = "1.0.228", optional = true }
-tokio = "1.51.1"
-tokio-util = "0.7.18"
+parking_lot = { version = "0.12", features = ["serde"] }
+serde = { version = "1.0.156", optional = true }
+tokio = "1.39"
+tokio-util = "0.7"
 url = "2.5.8"
-reqwest = { version = "0.13.2", default-features = false, features = ["brotli", "default-tls", "deflate", "gzip", "http2", "socks", "system-proxy", "zstd"] }
-thiserror = "2.0.18"
-crossfire = "3.1.7"
+reqwest = { version = "0.13.2", default-features = false, features = [
+    "brotli",
+    "default-tls",
+    "deflate",
+    "gzip",
+    "http2",
+    "socks",
+    "system-proxy",
+    "zstd",
+] }
+thiserror = "2.0"
+crossfire = "3.0"
 
 [features]
 serde = ["dep:serde", "fast-down/serde"]

@@ -223,8 +223,14 @@ pub async fn get_pusher(
         );
         return Ok(pusher);
     }
-    let pusher = fast_down::file::FilePusher::new(file, info.size, buffer_size)
-        .await
-        .map_err(|e| format!("{e:?}"))?;
+    let pusher = fast_down::file::CacheFilePusher::new(
+        file,
+        info.size,
+        buffer_size,
+        buffer_size / 2,
+        buffer_size,
+    )
+    .await
+    .map_err(|e| format!("{e:?}"))?;
     Ok(BoxPusher::new(pusher))
 }
