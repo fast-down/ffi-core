@@ -176,6 +176,7 @@ impl DownloadTask {
         let pusher = get_pusher(
             &self.info,
             self.config.write_method.clone(),
+            self.config.sync_all,
             self.config.cache_high_watermark,
             self.config.cache_low_watermark,
             self.config.write_buffer_size,
@@ -204,6 +205,7 @@ impl DownloadTask {
 pub async fn get_pusher(
     info: &UrlInfo,
     write_method: crate::WriteMethod,
+    sync_all: bool,
     high_watermark: usize,
     low_watermark: usize,
     buffer_size: usize,
@@ -221,7 +223,7 @@ pub async fn get_pusher(
     if info.fast_download && write_method == crate::WriteMethod::Mmap {
         use fast_down::file::MmapFilePusher;
         let pusher = BoxPusher::new(
-            MmapFilePusher::new(file, info.size)
+            MmapFilePusher::new(file, info.size, sync_all)
                 .await
                 .map_err(|e| format!("{e:?}"))?,
         );
@@ -230,6 +232,7 @@ pub async fn get_pusher(
     let pusher = fast_down::file::CacheFilePusher::new(
         file,
         info.size,
+        sync_all,
         high_watermark,
         low_watermark,
         buffer_size,

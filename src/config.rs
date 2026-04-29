@@ -24,6 +24,10 @@ pub struct Config {
     /// - 分块太小容易造成强烈竞争
     /// - 当无法分块的时候会进入冗余竞争模式
     pub min_chunk_size: u64,
+    /// 是否确保文件已经写入磁盘，推荐值 `false`
+    ///
+    /// 除非你需要下载完成后立马关机，不然都应该用 `false`
+    pub sync_all: bool,
     /// 写入缓冲区大小，单位为字节，推荐值 `16 * 1024 * 1024`
     ///
     /// - 只对 [`WriteMethod::Std`] 写入方法有效，有利于将随机写入转换为顺序写入，提高写入速度
@@ -95,6 +99,7 @@ impl Default for Config {
             threads: 32,
             proxy: Proxy::System,
             headers: HashMap::new(),
+            sync_all: false,
             min_chunk_size: 8 * 1024 * 1024,
             write_buffer_size: 16 * 1024 * 1024,
             cache_high_watermark: 16 * 1024 * 1024,
